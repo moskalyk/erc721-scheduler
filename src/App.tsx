@@ -2,10 +2,6 @@ import React, {useState} from 'react';
 import logo from './logo.svg';
 import './App.css';
 import { sequence } from '0xsequence'
-import img0 from './0.png'
-import img1 from './1.png'
-import img2 from './2.png'
-import img3 from './3.png'
 
 import { ethers } from 'ethers'
 
@@ -24,17 +20,6 @@ function App() {
 
   sequence.initWallet({defaultNetwork: 'base-goerli'})
 
-  const images = [
-    null,
-    img0,
-    null,
-    img1,
-    null,
-    img2,
-    null, 
-    img3,
-  ]
-
   React.useEffect(() => {
     if(!init && isLoggedIn){
       setInit(true)
@@ -48,16 +33,10 @@ function App() {
             accountAddress: accountAddress,
             includeMetadata: true
         })
-        console.log(nftBalances.balances[0].tokenMetadata?.image)
           for (var i = 0; i < comps.length; i++) {
             var element = comps[i] as HTMLElement;
             element.style.background = `url(${nftBalances.balances[0].tokenMetadata?.image})`
-            console.log(images[index])
         }
-        // setIndex(index+1)
-        console.log(index)
-        index++
-        if(index == images.length) index = 0
       }, 2000)
     }
     return () => {
