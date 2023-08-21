@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron&display=swap');
+
 .App {
   text-align: center;
 }
@@ -45,6 +47,16 @@ body, html {
   align-items: center;
   justify-content: center;
   background-color: white;
+}
+
+#simulate {
+  background: black;
+  color: white;
+  border: none;
+  padding: 1rem 3rem;
+  font-size: 24px;
+  display: block;
+  margin: auto;
 }
 
 #apply-filter {
@@ -99,7 +111,6 @@ body, html {
   background-repeat: no-repeat !important;
   background-position: 50% 50% !important;
   background-size: cover !important;
-  background: url("https://media.discordapp.net/attachments/1091126083895693312/1142114835665010708/morganmoskalyk_aliens_from_the_future_giving_a_weather_forecast_ed49963c-1c69-4320-afa6-1599a95055b1.png?width=800&height=800");
 }
 .filtered .c-glitch {
   overflow: hidden;
@@ -307,4 +318,19 @@ body, html {
     opacity: 0;
     transform: translate3d(0, 0, 0);
   }
+}
+
+.horizontal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  width: 1000px;
+  margin: auto;
+  border: 1px solid black;
+}
+
+.segment {
+  height: 100%;
+  border: 1px solid black;
 }

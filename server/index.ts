@@ -11,6 +11,7 @@ import express from 'express'
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import fetch from 'cross-fetch'
+import { json } from "stream/consumers";
 
 const app = express()
 const PORT = 4000
@@ -58,7 +59,6 @@ let jsonQueue = [
 
 // Function to process a JSON object
 async function processJson(json) {
-  console.log("Processing JSON:", json);
   const contractAddress = '0x426e1787e32f231408410e699E0E31FE6C34CFA8'
   
   // Add your processing logic here
@@ -72,18 +72,56 @@ async function processJson(json) {
     to: contractAddress,
     data
   }
+  
   const res = await wallet.sendTransaction(tx)
   console.log(res)
   await fetch('https://metadata.sequence.app/tokens/84531/0x426e1787e32f231408410e699E0E31FE6C34CFA8/0/refresh')
 }
 
-// Timer interval (in milliseconds)
-const timerInterval = 30000; // 30 second
+const totalTime = 100000
+
+// Start the timer
+let index = 0;
+let scheduleLength = 100000
+
+function divideIntoEqualParts(scheduleLength, parts) {
+  const equalPartsList = [];
+  const partSize = scheduleLength / (parts);
+
+  for (let i = 0; i < parts; i++) {
+    equalPartsList.push(partSize);
+  }
+
+  return equalPartsList;
+}
+
+const createLikes = () => {
+  let tempArray = {}
+
+  for(let json of jsonQueue){
+    tempArray[json.data] = 0
+  }
+
+  return tempArray
+}
+
+function calculateRelativeSizes(likes) {
+  const totalLikes: any = Object.values(likes).reduce((sum: any, value: any) => sum + value, 0);
+  const relativeSizes = [];
+
+  for (const uri in likes) {
+    const relativeSize = (likes[uri] / totalLikes) * scheduleLength;
+    relativeSizes.push(relativeSize);
+  }
+
+  return relativeSizes;
+}
 
 // Function to process the JSON queue on a timer
 async function processQueueWithTimer() {
   if (jsonQueue.length > 0) {
-    const json = jsonQueue.shift(); // Get the first JSON object from the queue
+    const json = jsonQueue[index]; // Get the first JSON object from the queue
+    console.log('processing...')
     processJson(json); // Process the JSON object
   } else {
     console.log("Queue is empty.");
@@ -92,7 +130,6 @@ async function processQueueWithTimer() {
 }
 
 const onlyAuthor = (req: any, res: any, next: any) => {
-  //TODO: get owner from smart contract
   if(req.body.author == process.env.AUTHOR) {
     next()
   } else {
@@ -100,9 +137,13 @@ const onlyAuthor = (req: any, res: any, next: any) => {
   }
 }
 
+// config
+const likes = createLikes()
+
+// server
 app.post('/append', onlyAuthor, (req: any, res: any) => {
   if(req.body.author ==  process.env.AUTHOR){
-      jsonQueue.push({ id: jsonQueue.length+1, data: req.body.baseURI })
+      jsonQueue.push({ id: jsonQueue.length+1, data: req.body.uri })
       res.sendStatus(200)
   } else {
       res.sendStatus(404)
@@ -120,9 +161,51 @@ app.post('/restart', onlyAuthor, (req: any, res: any) => {
   res.sendStatus(200)
 })
 
-// Start the timer
-const queueTimer = setInterval(processQueueWithTimer, timerInterval);
+app.post('/like', (req: any, res: any) => {
+  const tempTimeList = []
+  likes[req.body.uri] = likes[req.body.uri]+1
 
+  timeList = calculateRelativeSizes(likes)
+  res.sendStatus(200)
+})
+
+app.get('/times', (req: any, res: any) => {
+  res.send({times: timeList, status: 200})
+})
+
+let timeList = divideIntoEqualParts(scheduleLength, jsonQueue.length);; // List of times in milliseconds
+
+(async () => {
+  for(;;){
+    const res = await variableTimer(timeList)
+  }
+})()
+
+// timer work
+function performActionAfterWait(time) {
+  return new Promise((resolve: any) => {
+    setTimeout(async () => {
+      console.log(`Action performed after ${time} milliseconds`);
+      await processQueueWithTimer()
+      const metadata = jsonQueue[index].data;
+      if(metadata){
+        index++
+        if(index == jsonQueue.length) index = 0
+      }
+      resolve();
+    }, time);
+  });
+}
+
+async function variableTimer(timeList) {
+  console.log(timeList)
+  for (const time of timeList) {
+    await performActionAfterWait(time);
+  }
+}
+
+
+// listening, important
 app.listen(PORT, () => {
   console.log(`Listening on ${PORT}`)
 })
