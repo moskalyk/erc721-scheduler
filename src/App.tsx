@@ -45,6 +45,8 @@ function App() {
   const [accountAddress, setAccountAddress] = useState<any>(null)
   const [percentages, setPercentages] = useState<any>([0.2, 0.3, 0.25, 0.10, 0.15])
   const [screen, setScreen] = useState<any>(null)
+  const [isAudio, setIsAudio] = useState<any>(false)
+  const [radio, setRadio] = useState<any>('')
   sequence.initWallet({defaultNetwork: 'base-goerli'})
 
   React.useEffect(() => {
@@ -139,9 +141,25 @@ function App() {
     { id: 0, data: "https://bafybeiccf6bnqkfrsreaxajhjb7kxvsckts2g2o26arclguwvozhgzmisa.ipfs.nftstorage.link/" },
   ];
 
+  const append = async () => {
+    const res1 = await fetch("http://localhost:4000/append", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ 
+        uri: "https://bafybeieleo7rbqn4uaxlluu2esvhzjl5xo4zfdtbxqewp2pfusisogzsai.ipfs.nftstorage.link/"
+      }),
+    })
+    setTimeout(() => {
+      getSchedule()
+    }, 4000)
+  }
+
   const simulate = async () => {
+    let i = 0;
     for(let uri of jsonQueue){
-      const likeRandomzz = Math.floor(Math.random()*100)
+      const likeRandomzz = Math.floor(Math.random()*10)
       for(let j = 0; j < likeRandomzz; j++){
         const res1 = await fetch("http://localhost:4000/like", {
           method: "POST",
@@ -153,6 +171,8 @@ function App() {
           }),
         })
       }
+      i++
+      if(i == 2) break;
     }
     const res = await fetch('http://localhost:4000/times')
     const json = await res.json()
@@ -186,12 +206,20 @@ function App() {
       console.log(tokenURI)
       const res = await fetch(tokenURI)
       const json = await res.json()
-      setScreen(json.image)
+      console.log(json)
+      if(json.animation_url){
+        setRadio(json.animation_url)
+        setIsAudio(true)
+      }else{
+        setIsAudio(false)
 
-      const comps = document.getElementsByClassName('c-glitch__img');
-      for (var i = 0; i < comps.length; i++) {
-        var element = comps[i] as HTMLElement;
-        element.style.background = `url(${json.image})`
+        setScreen(json.image)
+        const comps = document.getElementsByClassName('c-glitch__img');
+        for (var i = 0; i < comps.length; i++) {
+          var element = comps[i] as HTMLElement;
+          element.style.background = `url(${json.image})`
+          console.log(json.image)
+        }
       }
     }, 1000)
   }
@@ -220,22 +248,41 @@ function App() {
       <button id="simulate" onClick={() => {simulate()}} style={{cursor: 'pointer', marginTop: '-80px'}}>Simulate</button>
       <br/>
       <br/>
-      <div className="container">
-        <div id="filter-image">
-          <div className="c-glitch">
-              <div className="c-glitch__img"></div>
-              <div className="c-glitch__img"></div>
-              <div className="c-glitch__img"></div>
-              <div className="c-glitch__img"></div>
-              <div className="c-glitch__img"></div>
+      <br/>
+      <br/>
+      <br/>
+      <br/>
+      <br/>
+      <button id="simulate" onClick={() => {append()}} style={{cursor: 'pointer', marginTop: '-80px'}}>Append</button>
+      <br/>
+      {
+        isAudio ? 
+          <>
+            <p>📻</p>
+            <audio controls>
+              <source src={radio} type="audio/mpeg" />
+              Your browser does not support the audio element.
+            </audio>
+          </>
+        :
+        <div className="container">
+          <div id="filter-image">
+            <div className="c-glitch">
+                <div className="c-glitch__img"></div>
+                <div className="c-glitch__img"></div>
+                <div className="c-glitch__img"></div>
+                <div className="c-glitch__img"></div>
+                <div className="c-glitch__img"></div>
+            </div>
           </div>
+          <div className="tv-set">
+          </div>
+          <button onClick={() => {connect()}} id="apply-filter" style={{cursor: 'pointer', marginTop: '-80px'}}>Mint to turn on</button>
+          <br/>
+          <br/>
         </div>
-        <div className="tv-set">
-        </div>
-        <button onClick={() => {connect()}} id="apply-filter" style={{cursor: 'pointer', marginTop: '-80px'}}>Mint to turn on</button>
-        <br/>
-        <br/>
-      </div>
+      }
+      
     </div>
   );
 }

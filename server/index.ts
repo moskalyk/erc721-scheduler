@@ -4,14 +4,37 @@ import { RpcRelayer } from '@0xsequence/relayer'
 import { Orchestrator } from '@0xsequence/signhub'
 import { ethers, utils } from 'ethers'
 import { Wallet } from '@0xsequence/wallet'
+import { Web3Storage, File } from 'web3.storage'
 
 dotenv.config();
+
+import mongoose from 'mongoose';
 
 import express from 'express'
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import fetch from 'cross-fetch'
 import { json } from "stream/consumers";
+
+// music
+import { parseBuffer } from 'music-metadata';
+import axios from 'axios';
+import { Media } from './models/Media.ts'
+
+var username = 'mm';
+var password = 'Asswordk';
+var hosts = 'lon5-c14-0.mongo.objectrocket.com:43793,lon5-c14-1.mongo.objectrocket.com:43793,lon5-c14-2.mongo.objectrocket.com:43793';
+var database = 'erc721';
+var options = '?replicaSet=faf5ae88bece406282f758108bb2641e';
+var connectionString = 'mongodb://' + username + ':' + password + '@' + hosts + '/' + database + options;
+// Connect to the remote MongoDB database
+mongoose.connect(connectionString)
+.then(() => {
+    console.log('Connected to MongoDB');
+})
+.catch(err => {
+    console.error('Error connecting to MongoDB:', err);
+});
 
 const app = express()
 const PORT = 4000
@@ -44,6 +67,21 @@ console.log(`relaying from address: ${wallet.address}`)
 const corsOptions = {
     origin: ['http://localhost:3000', "*"],
 };
+
+function getAccessToken () {
+  return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkaWQ6ZXRocjoweGMzNUMyQWVBQ2MwNTUxOUE3QTEwQTMwOTU4NzgxNWRGRDYzQTQyNGYiLCJpc3MiOiJ3ZWIzLXN0b3JhZ2UiLCJpYXQiOjE2NzgxMTM5MjQ4NzQsIm5hbWUiOiJkcm9wIn0.dVQgHZI22FSKzpkreIrDHA2nkq_2wHFD6-dUOprq9ng"
+}
+
+function makeStorageClient () {
+  return new Web3Storage({ token: getAccessToken() })
+}
+
+async function storeFiles (files: any) {
+  const client = makeStorageClient()
+  const cid = await client.put(files)
+  console.log('stored files with cid:', cid)
+  return cid
+}
   
 app.use(cors(corsOptions));
 app.use(bodyParser.json())
@@ -57,32 +95,11 @@ let jsonQueue = [
   { id: 0, data: "https://bafybeiccf6bnqkfrsreaxajhjb7kxvsckts2g2o26arclguwvozhgzmisa.ipfs.nftstorage.link/" },
 ];
 
-// Function to process a JSON object
-async function processJson(json) {
-  const contractAddress = '0x426e1787e32f231408410e699E0E31FE6C34CFA8'
-  
-  // Add your processing logic here
-  const interface721 = new ethers.utils.Interface([
-    'function setBaseURI(string memory baseURI_) onlyRelayer public'
-  ])
-
-  const data = interface721.encodeFunctionData('setBaseURI', [json.data])
-
-  const tx = {
-    to: contractAddress,
-    data
-  }
-  
-  const res = await wallet.sendTransaction(tx)
-  console.log(res)
-  await fetch('https://metadata.sequence.app/tokens/84531/0x426e1787e32f231408410e699E0E31FE6C34CFA8/0/refresh')
-}
-
-const totalTime = 100000
+const totalTime = 10000
 
 // Start the timer
 let index = 0;
-let scheduleLength = 100000
+let scheduleLength = 10000
 
 function divideIntoEqualParts(scheduleLength, parts) {
   const equalPartsList = [];
@@ -95,19 +112,10 @@ function divideIntoEqualParts(scheduleLength, parts) {
   return equalPartsList;
 }
 
-const createLikes = () => {
-  let tempArray = {}
-
-  for(let json of jsonQueue){
-    tempArray[json.data] = 0
-  }
-
-  return tempArray
-}
-
 function calculateRelativeSizes(likes) {
   const totalLikes: any = Object.values(likes).reduce((sum: any, value: any) => sum + value, 0);
   const relativeSizes = [];
+  console.log(totalLikes)
 
   for (const uri in likes) {
     const relativeSize = (likes[uri] / totalLikes) * scheduleLength;
@@ -115,18 +123,6 @@ function calculateRelativeSizes(likes) {
   }
 
   return relativeSizes;
-}
-
-// Function to process the JSON queue on a timer
-async function processQueueWithTimer() {
-  if (jsonQueue.length > 0) {
-    const json = jsonQueue[index]; // Get the first JSON object from the queue
-    console.log('processing...')
-    processJson(json); // Process the JSON object
-  } else {
-    console.log("Queue is empty.");
-  //   clearInterval(queueTimer); // Stop the timer if the queue is empty
-  }
 }
 
 const onlyAuthor = (req: any, res: any, next: any) => {
@@ -137,17 +133,65 @@ const onlyAuthor = (req: any, res: any, next: any) => {
   }
 }
 
-// config
-const likes = createLikes()
-
 // server
-app.post('/append', onlyAuthor, (req: any, res: any) => {
-  if(req.body.author ==  process.env.AUTHOR){
-      jsonQueue.push({ id: jsonQueue.length+1, data: req.body.uri })
-      res.sendStatus(200)
-  } else {
-      res.sendStatus(404)
-  }
+app.post('/append', async (req: any, res: any) => {
+
+  const files = []
+    const audioUrl = req.body.uri
+    const obj = { 
+      name: 'Dial up ...',
+      description: "A few track setlist",
+      animation_url: audioUrl
+    }
+    const blob = new Blob([JSON.stringify(obj)], { type: 'application/json' })
+
+    files.push(new File([blob], '0.json'))
+
+    const cid = await storeFiles(files)
+    const baseURI = `https://${cid}.ipfs.nftstorage.link/`;
+
+    // Use axios to download the audio file
+    axios({
+        method: 'get',
+        url: audioUrl,
+        responseType: 'arraybuffer'
+    })
+    .then(response => {
+      const contentType = response.headers['content-type'];
+
+      // Determine the media file type based on the Content-Type header
+      if (contentType.startsWith('image/')) {
+          console.log('Media file is an image.');
+          const newMedia = new Media({ uri: baseURI, time: 30000, like: 0});
+          newMedia.save()
+          // You can save the image buffer to a file or process it further as needed.
+      } else if (contentType.startsWith('audio/')) {
+          console.log('Media file is an audio.');
+          console.log(response.data)
+          const audioStream = response.data;
+          const audioData = Buffer.from(audioStream);
+          // Analyze the audio using fluent-ffmpeg
+          parseBuffer(audioData)
+          .then(metadata => {
+              const durationInSeconds = metadata.format.duration;
+              console.log('Audio duration (seconds):', durationInSeconds);
+              const newMedia = new Media({ uri: baseURI, time: durationInSeconds*1000, like: 0});
+              newMedia.save()
+          })
+          .catch(err => {
+              console.error('Error analyzing audio:', err.message);
+          });
+          // You can save the audio buffer to a file or process it further as needed.
+      } 
+      else {
+          console.log('Media file type not recognized:', contentType);
+      }
+    })
+    .catch(error => {
+        console.error('Error downloading audio:', error);
+    });
+
+  res.sendStatus(200)
 })
 
 app.post('/restart', onlyAuthor, (req: any, res: any) => {
@@ -161,49 +205,42 @@ app.post('/restart', onlyAuthor, (req: any, res: any) => {
   res.sendStatus(200)
 })
 
-app.post('/like', (req: any, res: any) => {
-  const tempTimeList = []
-  likes[req.body.uri] = likes[req.body.uri]+1
+app.post('/like', async (req: any, res: any) => {
 
-  timeList = calculateRelativeSizes(likes)
+  // likes[req.body.uri] = likes[req.body.uri]+1
+  const media = await Media.findOne(
+      { uri: req.body.uri },  // Find the document with the specified mediaId
+  );
+    console.log(media)
+  const updatedMedia = await Media.updateOne(
+            { uri: req.body.uri },  // Find the document with the specified mediaId
+            { $set: { like: media.like + 1 } } // Update the time field with the new value
+        );
+
+  const all = await Media.find(
+    {},
+  );
+  const tempLike: any = {}
+  const likes = all.map((_) => { tempLike[_.uri] = _.like })
+
+  const timeList = calculateRelativeSizes(tempLike)
+  all.map(async (_, i) => {
+    console.log(timeList[i])
+
+    const updatedMedia = await Media.updateOne(
+      { uri: _.uri },  // Find the document with the specified mediaId
+      { $set: { time: timeList[i] } } // Update the time field with the new value
+    );
+  })
+
   res.sendStatus(200)
 })
 
-app.get('/times', (req: any, res: any) => {
+app.get('/times', async (req: any, res: any) => {
+  const media = await Media.find({})
+  const timeList = media.map((_: any) => _.time)
   res.send({times: timeList, status: 200})
 })
-
-let timeList = divideIntoEqualParts(scheduleLength, jsonQueue.length);; // List of times in milliseconds
-
-(async () => {
-  for(;;){
-    const res = await variableTimer(timeList)
-  }
-})()
-
-// timer work
-function performActionAfterWait(time) {
-  return new Promise((resolve: any) => {
-    setTimeout(async () => {
-      console.log(`Action performed after ${time} milliseconds`);
-      await processQueueWithTimer()
-      const metadata = jsonQueue[index].data;
-      if(metadata){
-        index++
-        if(index == jsonQueue.length) index = 0
-      }
-      resolve();
-    }, time);
-  });
-}
-
-async function variableTimer(timeList) {
-  console.log(timeList)
-  for (const time of timeList) {
-    await performActionAfterWait(time);
-  }
-}
-
 
 // listening, important
 app.listen(PORT, () => {

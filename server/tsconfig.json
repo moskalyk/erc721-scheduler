@@ -1,6 +1,13 @@
 {
     "compilerOptions": {
-        "target": "ES2015",
-        "esModuleInterop": true
+        "module": "es6",
+        "target": "es5",  
+        "esModuleInterop": true,
+        "moduleResolution": "Node",
+        "allowImportingTsExtensions": true,
+        "noEmit": true
+    },
+    "ts-node": {
+        "esm": true
     }
 }
