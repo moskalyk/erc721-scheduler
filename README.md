@@ -1,5 +1,8 @@
-# nft-scheduler
-cycle media on a single ERC721
+# nft-scheduler 
+cycle media with a single ERC721
 
-# extensions 
+### 📺 img-extensions 
 aggregate likes in an app, and provide variable duration to media cycle
+
+### 📻 audio-extensions 
+timed cycle of media based on audio clip length
